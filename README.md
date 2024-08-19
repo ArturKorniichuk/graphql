@@ -30,6 +30,7 @@ This project demonstrates how to build a profile page using GraphQL to query dat
 
 ## Usage
 
-1. **Login**: Enter your username or email and password to authenticate.
-2. **Profile Page**: After logging in, you'll be redirected to the profile page where you can see your information and graphs.
+1. Click here to view the project: https://arturkorniichuk.github.io/graphql/
+2. **Login**: Enter your username or email and password to authenticate.
+3. **Profile Page**: After logging in, you'll be redirected to the profile page where you can see your information and graphs.
 

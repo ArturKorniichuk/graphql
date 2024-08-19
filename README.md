@@ -1,36 +1,35 @@
-# My GraphQL Profile Project
+# GraphQL
 
-This project is a personal profile page built using React, TypeScript, and Vite. The profile page uses GraphQL to query data from a specified endpoint and displays various pieces of information along with statistical graphs generated using D3.js.
+## Overview
 
-## Table of Contents
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Setup Instructions](#setup-instructions)
-- [GraphQL Queries](#graphql-queries)
-- [Usage](#usage)
-- [Hosting](#hosting)
-- [Technologies Used](#technologies-used)
-- [Expanding the ESLint Configuration](#expanding-the-eslint-configuration)
-
-## Project Overview
-The objective of this project is to learn and demonstrate the use of the GraphQL query language by creating a profile page. The profile displays user information and generates statistical graphs based on the data retrieved from the GraphQL endpoint.
+This project demonstrates how to build a profile page using GraphQL to query data from a GraphQL API. It includes a login page for authentication and a profile page displaying user information along with statistical graphs.
 
 ## Features
-- User authentication with JWT
-- Display basic user information (ID, login, email)
-- Generate and display statistical graphs using D3.js
-  - XP earned over time (bar chart)
-  - XP progress over time (line chart)
-  - PASS/FAIL ratio (pie chart)
 
-## Setup Instructions
+- **Login Page**: Allows users to authenticate using their username or email and password.
+- **Profile Page**: Displays user information and statistical graphs.
+- **Statistical Graphs**: Includes SVG-based graphs to visualize data such as XP earned and project status.
 
-### Prerequisites
-- Node.js and npm installed
-- Git installed
+## Technologies Used
 
-### Installation
-1. Clone the repository:
-   ```sh
-   git clone <repository-url>
-   cd <repository-name>
+- **React**: JavaScript library for building user interfaces.
+- **GraphQL**: Query language for APIs.
+- **Apollo Client**: For managing GraphQL data and integrating with React.
+- **Axios**: For making HTTP requests.
+- **SVG**: For creating graphs.
+
+## File Structure
+
+- `src/App.tsx`: Main application component.
+- `src/components/Login/Login.tsx`: Login page component.
+- `src/components/MainPage.tsx`: Main page component.
+- `src/components/Profile/Profile.tsx`: Profile page component.
+- `src/utils/api.ts`: API utility functions for authentication.
+- `src/utils/graphql.ts`: GraphQL client setup.
+- `src/index.tsx`: Entry point for React application.
+
+## Usage
+
+1. **Login**: Enter your username or email and password to authenticate.
+2. **Profile Page**: After logging in, you'll be redirected to the profile page where you can see your information and graphs.
+

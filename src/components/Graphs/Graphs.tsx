@@ -16,8 +16,8 @@ import {
 } from "recharts";
 import "./Graphs.css";
 
-const GET_XP_DATA = gql`
-  query GetXPData($userId: Int!) {
+const GET_USER_DATA_AND_XP = gql`
+  query GetUserDataAndXP($userId: Int!) {
     transaction(where: { userId: { _eq: $userId }, type: { _eq: "xp" } }) {
       amount
       createdAt
@@ -38,8 +38,9 @@ const GET_PROJECT_XP_DATA = gql`
 
 const GET_AUDITS_DATA = gql`
   query GetAuditsData($userId: Int!) {
-    audit(where: { auditorId: { _eq: $userId } }) {
-      grade
+    transaction(where: { userId: { _eq: $userId }, type: { _in: ["up", "down"] } }) {
+      type
+      amount
     }
   }
 `;
@@ -57,18 +58,21 @@ interface ProjectXP {
 }
 
 interface Audit {
-  grade: number;
+  type: string;
+  amount: number;
 }
 
 const Graphs: React.FC<{ userId: number }> = ({ userId }) => {
-  const { loading: loadingXP, error: errorXP, data: dataXP } = useQuery<{ transaction: XPTransaction[] }>(GET_XP_DATA, {
+  const { loading: loadingUserData, error: errorUserData, data: dataUserData } = useQuery<{
+    transaction: XPTransaction[];
+  }>(GET_USER_DATA_AND_XP, {
     variables: { userId },
   });
 
   const { loading: loadingProjectXP, error: errorProjectXP, data: dataProjectXP } =
-    useQuery<{ transaction: ProjectXP[] }>(GET_PROJECT_XP_DATA, { variables: { userId } });
+      useQuery<{ transaction: ProjectXP[] }>(GET_PROJECT_XP_DATA, { variables: { userId } });
 
-  const { loading: loadingAudits, error: errorAudits, data: dataAudits } = useQuery<{ audit: Audit[] }>(GET_AUDITS_DATA, {
+  const { loading: loadingAudits, error: errorAudits, data: dataAudits } = useQuery<{ transaction: Audit[] }>(GET_AUDITS_DATA, {
     variables: { userId },
   });
 
@@ -79,12 +83,15 @@ const Graphs: React.FC<{ userId: number }> = ({ userId }) => {
   const [period, setPeriod] = useState("all");
 
   useEffect(() => {
-    if (dataXP) {
-      const processedData = dataXP.transaction.map((d) => ({ ...d, amount: d.amount / 1000 }));
+    if (dataUserData) {
+      const processedData = dataUserData.transaction.map((d) => ({
+        ...d,
+        amount: d.amount / 1000,
+      }));
       setXPData(processedData);
       setFilteredXPData(processDataByPeriod(processedData, period));
     }
-  }, [dataXP, period]);
+  }, [dataUserData, period]);
 
   useEffect(() => {
     if (dataProjectXP) {
@@ -94,7 +101,7 @@ const Graphs: React.FC<{ userId: number }> = ({ userId }) => {
 
   useEffect(() => {
     if (dataAudits) {
-      setAuditData(dataAudits.audit);
+      setAuditData(dataAudits.transaction);
     }
   }, [dataAudits]);
 
@@ -108,8 +115,9 @@ const Graphs: React.FC<{ userId: number }> = ({ userId }) => {
       filteredData = data.filter((d) => new Date(d.createdAt) >= startDate);
     }
 
-    // Сортування даних за датою
-    filteredData.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    filteredData.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
 
     return filteredData;
   };
@@ -124,76 +132,90 @@ const Graphs: React.FC<{ userId: number }> = ({ userId }) => {
     return acc;
   }, [] as { name: string; value: number }[]).sort((a, b) => b.value - a.value).slice(0, 5);
 
-  const doneAmount = auditData.filter((a) => a.grade >= 1).length;
-  const receivedAmount = auditData.filter((a) => a.grade < 1).length;
-  const ratio = (doneAmount / (receivedAmount || 1)).toFixed(2);
+  const doneAuditsTotal = auditData
+      .filter((audit) => audit.type === "up")
+      .reduce((sum, audit) => sum + audit.amount, 0);
 
-  if (loadingXP || loadingProjectXP || loadingAudits) return <p>Loading...</p>;
-  if (errorXP || errorProjectXP || errorAudits) return <p>Error: {errorXP?.message || errorProjectXP?.message || errorAudits?.message}</p>;
+  const receivedAuditsTotal = auditData
+      .filter((audit) => audit.type === "down")
+      .reduce((sum, audit) => sum + audit.amount, 0);
+
+  const doneAuditsMB = (doneAuditsTotal / (1000 * 1000)).toFixed(2);
+  const receivedAuditsMB = (receivedAuditsTotal / (1000 * 1000)).toFixed(2);
+
+  const donePercentage = ((doneAuditsTotal / (doneAuditsTotal + receivedAuditsTotal)) * 100).toFixed(2);
+  const receivedPercentage = ((receivedAuditsTotal / (doneAuditsTotal + receivedAuditsTotal)) * 100).toFixed(2);
+
+  const ratio = (doneAuditsTotal / receivedAuditsTotal).toFixed(1);
+
+  if (loadingUserData || loadingProjectXP || loadingAudits) return <p>Loading...</p>;
+  if (errorUserData || errorProjectXP || errorAudits) return <p>Error: {errorUserData?.message || errorProjectXP?.message || errorAudits?.message}</p>;
 
   return (
-    <div className="graphs-container">
-      <div className="graph">
-        <h3>XP Progression Over Time</h3>
-        <div className="period-selector">
-          <label htmlFor="period">Period:</label>
-          <select id="period" value={period} onChange={(e) => setPeriod(e.target.value)}>
-            <option value="3">Last 3 months</option>
-            <option value="6">Last 6 months</option>
-            <option value="12">Last 12 months</option>
-            <option value="all">All time</option>
-          </select>
+      <div className="graphs-container">
+        <div className="graph">
+          <h3>XP Progression Over Time</h3>
+          <div className="period-selector">
+            <label htmlFor="period">Period:</label>
+            <select id="period" value={period} onChange={(e) => setPeriod(e.target.value)}>
+              <option value="3">Last 3 months</option>
+              <option value="6">Last 6 months</option>
+              <option value="12">Last 12 months</option>
+              <option value="all">All time</option>
+            </select>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart
+                data={filteredXPData.map((d) => ({
+                  ...d,
+                  date: new Date(d.createdAt).toLocaleDateString(),
+                }))}
+            >
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="amount" stroke="#8884d8" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={filteredXPData.map((d) => ({
-            ...d,
-            date: new Date(d.createdAt).toLocaleDateString(),
-          }))}>
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="amount" stroke="#8884d8" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="graph">
-        <h3>Top 5 Projects by XP</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <RadarChart data={processedProjectXPData}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="name" />
-            <PolarRadiusAxis />
-            <Radar name="XP" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
-            <Tooltip />
-            <Legend />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="graph">
-        <h3>Audits Ratio</h3>
-        <div className="audit-ratio">
-          <div className="audit-ratio__bars">
-            <div className="audit-ratio__bar audit-ratio__bar--done" style={{ width: `${doneAmount}%` }} />
-            <div className="audit-ratio__bar audit-ratio__bar--received" style={{ width: `${receivedAmount}%` }} />
-          </div>
-          <div className="audit-ratio__info">
-            <div className="audit-ratio__info-item">
-              <span>Done</span>
-              <span>{doneAmount.toFixed(2)} audits</span>
+        <div className="graph">
+          <h3>Top 5 Projects by XP</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <RadarChart data={processedProjectXPData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="name" />
+              <PolarRadiusAxis />
+              <Radar name="XP" dataKey="value" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+              <Tooltip />
+              <Legend />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="graph">
+          <h3>Audits Ratio</h3>
+          <div className="audit-ratio">
+            <div className="audit-ratio__bars">
+              <div className="audit-ratio__bar audit-ratio__bar--done" style={{ width: `${donePercentage}%` }} />
+              <div className="audit-ratio__bar audit-ratio__bar--received" style={{ width: `${receivedPercentage}%` }} />
             </div>
-            <div className="audit-ratio__info-item">
-              <span>Received</span>
-              <span>{receivedAmount.toFixed(2)} audits</span>
+            <div className="audit-ratio__info">
+              <div className="audit-ratio__info-item">
+                <span>Done</span>
+                <span>{doneAuditsMB} MB</span>
+              </div>
+              <div className="audit-ratio__info-item">
+                <span>Received</span>
+                <span>{receivedAuditsMB} MB</span>
+              </div>
             </div>
-          </div>
-          <div className="audit-ratio__result">
-            <div className="audit-ratio__result-number">{ratio}</div>
-            <div className="audit-ratio__result-label">Best ratio ever!</div>
+            <div className="audit-ratio__result">
+              <div className="audit-ratio__result-number">{ratio}</div>
+              <div className="audit-ratio__result-label">Almost perfect!</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
   );
 };
 
